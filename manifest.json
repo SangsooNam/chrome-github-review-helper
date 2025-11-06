@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+
+  "name": "Github Review Helper",
+  "description": "",
+  "version": "1.0.0",
+  "content_scripts": [{
+    "matches": ["*://github.com/pulls", "*://github.com/*/pulls", "*://*/*/pulls*", "*://*/pulls*"],
+    "js":      ["js/jquery-1.11.2.min.js", "js/content.js"]
+    }],
+  "icons": {
+     "128": "image/icon.png"
+  }
+}

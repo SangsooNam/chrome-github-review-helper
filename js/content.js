@@ -1,0 +1,110 @@
+// Config constants
+const POLL_CONFIG = {
+    INITIAL_DELAY: 300,
+    RETRY_INTERVAL: 500,
+    MAX_RETRIES: 20,
+    MAX_WAIT_TIME: 10000  // 10 seconds max
+};
+
+$(document).ready(function() {
+    setTimeout(() => pollVisibility(), POLL_CONFIG.INITIAL_DELAY);
+});
+
+function pollVisibility(retryCount = 0, startTime = Date.now()) {
+    // Guard: Check max retries
+    if (retryCount >= POLL_CONFIG.MAX_RETRIES) {
+        console.warn('Max polling retries reached. Elements may not be loaded.');
+        return;
+    }
+
+    // Guard: Check max wait time
+    const elapsed = Date.now() - startTime;
+    if (elapsed >= POLL_CONFIG.MAX_WAIT_TIME) {
+        console.warn(`Polling timeout after ${elapsed}ms`);
+        return;
+    }
+
+    // Guard: Check if elements exist
+    const $rows = $('.js-issue-row');
+    if ($rows.length === 0) {
+        setTimeout(() => pollVisibility(retryCount + 1, startTime), POLL_CONFIG.RETRY_INTERVAL);
+        return;
+    }
+
+    // Process each row
+    $('.js-issue-row.js-navigation-item').each(function() {
+        const $item = $(this);
+        const $reviewStatus = $item.find(".d-inline-block > a");
+
+        // Update the background color
+        $item.css("background", $reviewStatus.text().includes("Approve") ? "#dff0d8" : "");
+
+        const $link = $item.find('.js-navigation-open');
+
+        // Guard: Check link validity
+        if (!$link.length || !$link.attr('href') || !$link.text()) {
+            console.log("Link not found or incomplete");
+            setTimeout(() => pollVisibility(retryCount + 1, startTime), POLL_CONFIG.RETRY_INTERVAL);
+            return false; // Exit .each() early
+        }
+
+        // Add copy button (only once)
+        if ($item.find('.btn.ml-2').length === 0) {
+            addCopyButton($link);
+        }
+
+        // Load diffstat
+        loadDiffstat($link);
+    });
+}
+
+function addCopyButton($link) {
+    // Add Copy Button
+    $link.after(
+        $('<button>')
+            .addClass('btn btn-sm ml-2')
+            .css({
+                'padding': '1px 12px',
+                'position': 'absolute',
+                'right': '10px',
+                'height': '40px'
+            })
+            .text('Copy')
+            .on('click', handleCopyClick($link))
+    );
+}
+
+function handleCopyClick($link) {
+    return async (e) => {
+        e.preventDefault();
+        try {
+            const text = await navigator.clipboard.readText();
+            const currentDomain = `${window.location.protocol}//${window.location.host}`;
+            const prLink = `${$link.text()} ${currentDomain}${$link.attr('href')}`;
+            const newText = text.includes(currentDomain)
+                ? `${text}\n${prLink}`
+                : prLink;
+            await navigator.clipboard.writeText(newText);
+        } catch (err) {
+            console.error('Clipboard operation failed:', err);
+        }
+    };
+}
+
+function loadDiffstat($link) {
+    if ($link.next('.diffstat').length > 0) {
+        return; // Already loaded
+    }
+
+    // Fetch and append diffstat
+    $.get($link.attr('href'))
+        .done(function(data) {
+            const tabnav = $(data).find(".tabnav-extra > .diffstat");
+            if (tabnav.length > 0) {
+                $link.after(`<span style='white-space:normal' class='diffstat'>${tabnav.html()}</span>`);
+            }
+        })
+        .fail(function(err) {
+            console.error('Failed to load diffstat:', err);
+        });
+}
