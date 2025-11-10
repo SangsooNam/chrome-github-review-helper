@@ -6,6 +6,11 @@ const POLL_CONFIG = {
     MAX_WAIT_TIME: 10000  // 10 seconds max
 };
 
+const CONCURRENCY_CONFIG = {
+    MAX_CONCURRENT: 5,  // Max simultaneous requests
+    REQUEST_DELAY: 200  // Delay between batches (ms)
+};
+
 $(document).ready(function() {
     setTimeout(() => pollVisibility(), POLL_CONFIG.INITIAL_DELAY);
 });
@@ -31,7 +36,8 @@ function pollVisibility(retryCount = 0, startTime = Date.now()) {
         return;
     }
 
-    // Process each row
+    // Collect all links first
+    const links = [];
     $('.js-issue-row.js-navigation-item').each(function() {
         const $item = $(this);
         const $reviewStatus = $item.find(".d-inline-block > a");
@@ -44,8 +50,7 @@ function pollVisibility(retryCount = 0, startTime = Date.now()) {
         // Guard: Check link validity
         if (!$link.length || !$link.attr('href') || !$link.text()) {
             console.log("Link not found or incomplete");
-            setTimeout(() => pollVisibility(retryCount + 1, startTime), POLL_CONFIG.RETRY_INTERVAL);
-            return false; // Exit .each() early
+            return true; // Continue to next item
         }
 
         // Add copy button (only once)
@@ -53,8 +58,64 @@ function pollVisibility(retryCount = 0, startTime = Date.now()) {
             addCopyButton($link);
         }
 
-        // Load diffstat
-        loadDiffstat($link);
+        // Collect link for batch processing
+        links.push($link);
+    });
+
+    // Process diffstats with concurrency control
+    if (links.length > 0) {
+        processDiffstatsWithConcurrency(links);
+    }
+}
+
+async function processDiffstatsWithConcurrency(links) {
+    const queue = [...links];
+    const activeRequests = new Set();
+
+    while (queue.length > 0 || activeRequests.size > 0) {
+        // Fill up to max concurrent requests
+        while (queue.length > 0 && activeRequests.size < CONCURRENCY_CONFIG.MAX_CONCURRENT) {
+            const $link = queue.shift();
+
+            // Skip if already loaded
+            if ($link.next('.diffstat').length > 0) {
+                continue;
+            }
+
+            const requestPromise = loadDiffstatAsync($link)
+                .finally(() => {
+                    activeRequests.delete(requestPromise);
+                });
+
+            activeRequests.add(requestPromise);
+        }
+
+        // Wait for at least one request to complete
+        if (activeRequests.size > 0) {
+            await Promise.race(activeRequests);
+        }
+
+        // Small delay between batches to avoid overwhelming server
+        if (queue.length > 0) {
+            await new Promise(resolve => setTimeout(resolve, CONCURRENCY_CONFIG.REQUEST_DELAY));
+        }
+    }
+}
+
+function loadDiffstatAsync($link) {
+    return new Promise((resolve) => {
+        $.get($link.attr('href'))
+            .done(function(data) {
+                const tabnav = $(data).find(".tabnav-extra > .diffstat");
+                if (tabnav.length > 0) {
+                    $link.after(`<span style='white-space:normal' class='diffstat'>${tabnav.html()}</span>`);
+                }
+                resolve();
+            })
+            .fail(function(err) {
+                console.error('Failed to load diffstat:', err);
+                resolve(); // Resolve anyway to continue processing
+            });
     });
 }
 
@@ -89,22 +150,4 @@ function handleCopyClick($link) {
             console.error('Clipboard operation failed:', err);
         }
     };
-}
-
-function loadDiffstat($link) {
-    if ($link.next('.diffstat').length > 0) {
-        return; // Already loaded
-    }
-
-    // Fetch and append diffstat
-    $.get($link.attr('href'))
-        .done(function(data) {
-            const tabnav = $(data).find(".tabnav-extra > .diffstat");
-            if (tabnav.length > 0) {
-                $link.after(`<span style='white-space:normal' class='diffstat'>${tabnav.html()}</span>`);
-            }
-        })
-        .fail(function(err) {
-            console.error('Failed to load diffstat:', err);
-        });
 }
