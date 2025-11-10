@@ -3,10 +3,10 @@
 
   "name": "Github Review Helper",
   "description": "",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "content_scripts": [{
     "matches": ["*://github.com/pulls", "*://github.com/*/pulls", "*://*/*/pulls*", "*://*/pulls*"],
-    "js":      ["js/jquery-1.11.2.min.js", "js/content.js"]
+    "js":      ["js/jquery-3.7.1.min.js", "js/content.js"]
     }],
   "icons": {
      "128": "image/icon.png"
