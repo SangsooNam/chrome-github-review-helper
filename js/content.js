@@ -30,7 +30,7 @@ function pollVisibility(retryCount = 0, startTime = Date.now()) {
     }
 
     // Guard: Check if elements exist
-    const $rows = $('.js-issue-row');
+    const $rows = $('.js-issue-row.js-navigation-item');
     if ($rows.length === 0) {
         setTimeout(() => pollVisibility(retryCount + 1, startTime), POLL_CONFIG.RETRY_INTERVAL);
         return;
@@ -38,7 +38,7 @@ function pollVisibility(retryCount = 0, startTime = Date.now()) {
 
     // Collect all links first
     const links = [];
-    $('.js-issue-row.js-navigation-item').each(function() {
+    $rows.each(function() {
         const $item = $(this);
         const $reviewStatus = $item.find(".d-inline-block > a");
 
