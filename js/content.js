@@ -143,17 +143,25 @@ function handleCopyClick($link) {
             const currentDomain = `${window.location.protocol}//${window.location.host}`;
             const prLink = `${$link.text()} ${currentDomain}${$link.attr('href')}`;
 
-            // Split existing clipboard into lines and filter out the same PR link
-            const lines = text.split('\n').filter(line => {
-                // Remove the line if it contains the same PR URL
-                return !line.includes($link.attr('href'));
-            });
+            // Check if clipboard contains PR links from this extension
+            const isPRClipboard = text.split('\n').some(line =>
+                line.includes('/pull/') && line.includes(currentDomain)
+            );
 
-            // Add the new PR link
-            lines.push(prLink);
+            let newText;
+            if (isPRClipboard) {
+                // Clipboard has PR links - append to existing
+                const lines = text.split('\n').filter(line => {
+                    // Remove the line if it contains the same PR URL
+                    return !line.includes($link.attr('href'));
+                });
+                lines.push(prLink);
+                newText = lines.join('\n');
+            } else {
+                // Clipboard doesn't have PR links - replace entirely
+                newText = prLink;
+            }
 
-            // Write back to clipboard
-            const newText = lines.join('\n');
             await navigator.clipboard.writeText(newText);
         } catch (err) {
             console.error('Clipboard operation failed:', err);
