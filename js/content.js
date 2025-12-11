@@ -40,10 +40,12 @@ function pollVisibility(retryCount = 0, startTime = Date.now()) {
     const links = [];
     $rows.each(function() {
         const $item = $(this);
-        const $reviewStatus = $item.find(".d-inline-block > a");
 
         // Update the background color
-        $item.css("background", $reviewStatus.text().includes("Approve") ? "#dff0d8" : "");
+        setTimeout(() => {
+            const $reviewStatus = $item.find(".d-inline-block > a");
+            $item.css("background", $reviewStatus.text().includes("Approve") ? "#dff0d8" : "");
+        }, 1500);
 
         const $link = $item.find('.js-navigation-open');
 
