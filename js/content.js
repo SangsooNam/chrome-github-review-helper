@@ -140,6 +140,7 @@ function addCopyButton($link) {
 function handleCopyClick($link) {
     return async (e) => {
         e.preventDefault();
+        const $btn = $(e.currentTarget);
         try {
             const text = await navigator.clipboard.readText();
             const currentDomain = `${window.location.protocol}//${window.location.host}`;
@@ -165,8 +166,18 @@ function handleCopyClick($link) {
             }
 
             await navigator.clipboard.writeText(newText);
+            showCopiedFeedback($btn);
         } catch (err) {
             console.error('Clipboard operation failed:', err);
         }
     };
+}
+
+function showCopiedFeedback($btn) {
+    if ($btn.data('reset-timer')) {
+        clearTimeout($btn.data('reset-timer'));
+    }
+    $btn.text('Copied!');
+    const timer = setTimeout(() => $btn.text('Copy'), 1500);
+    $btn.data('reset-timer', timer);
 }
