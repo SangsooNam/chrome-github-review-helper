@@ -15,6 +15,16 @@ $(document).ready(function() {
     setTimeout(() => pollVisibility(), POLL_CONFIG.INITIAL_DELAY);
 });
 
+$(document).on('pjax:end turbo:render turbo:load', function() {
+    setTimeout(() => pollVisibility(), POLL_CONFIG.INITIAL_DELAY);
+});
+
+document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') {
+        setTimeout(() => pollVisibility(), POLL_CONFIG.INITIAL_DELAY);
+    }
+});
+
 function pollVisibility(retryCount = 0, startTime = Date.now()) {
     // Guard: Check max retries
     if (retryCount >= POLL_CONFIG.MAX_RETRIES) {
@@ -55,8 +65,8 @@ function pollVisibility(retryCount = 0, startTime = Date.now()) {
             return true; // Continue to next item
         }
 
-        // Add copy button (only once)
-        if ($item.find('.btn.ml-2').length === 0) {
+        // Add copy button (only once per row)
+        if ($item.find('.copy-pr-link-btn').length === 0) {
             addCopyButton($link);
         }
 
@@ -125,7 +135,7 @@ function addCopyButton($link) {
     // Add Copy Button
     $link.after(
         $('<button>')
-            .addClass('btn btn-sm ml-2')
+            .addClass('btn btn-sm ml-2 copy-pr-link-btn')
             .css({
                 'padding': '1px 12px',
                 'position': 'absolute',
