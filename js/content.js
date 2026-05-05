@@ -65,10 +65,9 @@ function pollVisibility(retryCount = 0, startTime = Date.now()) {
             return true; // Continue to next item
         }
 
-        // Add copy button (only once per row)
-        if ($item.find('.copy-pr-link-btn').length === 0) {
-            addCopyButton($link);
-        }
+        // Remove stale button (handlers lost after PJAX) and re-add
+        $item.find('.copy-pr-link-btn').remove();
+        addCopyButton($link);
 
         // Collect link for batch processing
         links.push($link);
