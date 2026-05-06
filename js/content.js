@@ -25,6 +25,9 @@ document.addEventListener('visibilitychange', function() {
     }
 });
 
+// Delegated click handler — survives PJAX/turbo re-renders
+$(document).on('click', '.copy-pr-link-btn', handleCopyClick);
+
 function pollVisibility(retryCount = 0, startTime = Date.now()) {
     // Guard: Check max retries
     if (retryCount >= POLL_CONFIG.MAX_RETRIES) {
@@ -57,6 +60,12 @@ function pollVisibility(retryCount = 0, startTime = Date.now()) {
             $item.css("background", $reviewStatus.text().includes("Approve") ? "#dff0d8" : "");
         }, 1500);
 
+        // Skip rows that already have button + diffstat — they survive PJAX intact
+        // because the click handler is delegated on document.
+        if ($item.data('pr-processed')) {
+            return true;
+        }
+
         const $link = $item.find('.js-navigation-open');
 
         // Guard: Check link validity
@@ -65,9 +74,8 @@ function pollVisibility(retryCount = 0, startTime = Date.now()) {
             return true; // Continue to next item
         }
 
-        // Remove stale button and diffstats (re-rendered on every PJAX/turbo event)
-        $item.find('.copy-pr-link-btn, .diffstat').remove();
         addCopyButton($link);
+        $item.data('pr-processed', true);
 
         // Collect link for batch processing
         links.push($link);
@@ -114,7 +122,6 @@ function loadDiffstatAsync($link) {
             .done(function(data) {
                 const tabnav = $(data).find(".tabnav-extra > .diffstat");
                 if (tabnav.length > 0) {
-                    $link.siblings('.diffstat').remove();
                     $link.after(`<span style='white-space:normal' class='diffstat'>${tabnav.html()}</span>`);
                 }
                 resolve();
@@ -127,7 +134,7 @@ function loadDiffstatAsync($link) {
 }
 
 function addCopyButton($link) {
-    // Add Copy Button
+    // Add Copy Button — click handler is delegated on document, so it survives PJAX
     $link.after(
         $('<button>')
             .addClass('btn btn-sm ml-2 copy-pr-link-btn')
@@ -138,44 +145,44 @@ function addCopyButton($link) {
                 'height': '40px'
             })
             .text('Copy')
-            .on('click', handleCopyClick($link))
     );
 }
 
-function handleCopyClick($link) {
-    return async (e) => {
-        e.preventDefault();
-        const $btn = $(e.currentTarget);
-        try {
-            const text = await navigator.clipboard.readText();
-            const currentDomain = `${window.location.protocol}//${window.location.host}`;
-            const prLink = `${$link.text()} ${currentDomain}${$link.attr('href')}`;
+async function handleCopyClick(e) {
+    e.preventDefault();
+    const $btn = $(e.currentTarget);
+    const $link = $btn.siblings('.js-navigation-open').first();
+    if (!$link.length) return;
 
-            // Check if clipboard contains PR links from this extension
-            const isPRClipboard = text.split('\n').some(line =>
-                line.includes('/pull/') && line.includes(currentDomain)
-            );
+    try {
+        const text = await navigator.clipboard.readText();
+        const currentDomain = `${window.location.protocol}//${window.location.host}`;
+        const prLink = `${$link.text()} ${currentDomain}${$link.attr('href')}`;
 
-            let newText;
-            if (isPRClipboard) {
-                // Clipboard has PR links - append to existing
-                const lines = text.split('\n').filter(line => {
-                    // Remove the line if it contains the same PR URL
-                    return !line.includes($link.attr('href'));
-                });
-                lines.push(prLink);
-                newText = lines.join('\n');
-            } else {
-                // Clipboard doesn't have PR links - replace entirely
-                newText = prLink;
-            }
+        // Check if clipboard contains PR links from this extension
+        const isPRClipboard = text.split('\n').some(line =>
+            line.includes('/pull/') && line.includes(currentDomain)
+        );
 
-            await navigator.clipboard.writeText(newText);
-            showCopiedFeedback($btn);
-        } catch (err) {
-            console.error('Clipboard operation failed:', err);
+        let newText;
+        if (isPRClipboard) {
+            // Clipboard has PR links - append to existing
+            const lines = text.split('\n').filter(line => {
+                // Remove the line if it contains the same PR URL
+                return !line.includes($link.attr('href'));
+            });
+            lines.push(prLink);
+            newText = lines.join('\n');
+        } else {
+            // Clipboard doesn't have PR links - replace entirely
+            newText = prLink;
         }
-    };
+
+        await navigator.clipboard.writeText(newText);
+        showCopiedFeedback($btn);
+    } catch (err) {
+        console.error('Clipboard operation failed:', err);
+    }
 }
 
 function showCopiedFeedback($btn) {
