@@ -114,6 +114,7 @@ function loadDiffstatAsync($link) {
             .done(function(data) {
                 const tabnav = $(data).find(".tabnav-extra > .diffstat");
                 if (tabnav.length > 0) {
+                    $link.siblings('.diffstat').remove();
                     $link.after(`<span style='white-space:normal' class='diffstat'>${tabnav.html()}</span>`);
                 }
                 resolve();
