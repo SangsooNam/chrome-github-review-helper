@@ -60,9 +60,9 @@ function pollVisibility(retryCount = 0, startTime = Date.now()) {
             $item.css("background", $reviewStatus.text().includes("Approve") ? "#dff0d8" : "");
         }, 1500);
 
-        // Skip rows that already have button + diffstat — they survive PJAX intact
-        // because the click handler is delegated on document.
-        if ($item.data('pr-processed')) {
+        // Skip rows that already have a button — check DOM directly so we
+        // survive bfcache restores where jQuery's data cache is stale.
+        if ($item.find('.copy-pr-link-btn').length) {
             return true;
         }
 
@@ -75,7 +75,6 @@ function pollVisibility(retryCount = 0, startTime = Date.now()) {
         }
 
         addCopyButton($link);
-        $item.data('pr-processed', true);
 
         // Collect link for batch processing
         links.push($link);
