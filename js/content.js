@@ -65,8 +65,8 @@ function pollVisibility(retryCount = 0, startTime = Date.now()) {
             return true; // Continue to next item
         }
 
-        // Remove stale button (handlers lost after PJAX) and re-add
-        $item.find('.copy-pr-link-btn').remove();
+        // Remove stale button and diffstats (re-rendered on every PJAX/turbo event)
+        $item.find('.copy-pr-link-btn, .diffstat').remove();
         addCopyButton($link);
 
         // Collect link for batch processing
