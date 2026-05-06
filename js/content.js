@@ -88,11 +88,6 @@ async function processDiffstatsWithConcurrency(links) {
         while (queue.length > 0 && activeRequests.size < CONCURRENCY_CONFIG.MAX_CONCURRENT) {
             const $link = queue.shift();
 
-            // Skip if already loaded
-            if ($link.next('.diffstat').length > 0) {
-                continue;
-            }
-
             const requestPromise = loadDiffstatAsync($link)
                 .finally(() => {
                     activeRequests.delete(requestPromise);
